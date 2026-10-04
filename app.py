@@ -1,60 +1,65 @@
 import os
+from pathlib import Path
+
 import streamlit as st
 from dotenv import load_dotenv
 from google import genai
 
-# -----------------------------
-# Load environment variables
-# -----------------------------
 
-from pathlib import Path
+# ============================================================
+# PAGE CONFIGURATION
+# ============================================================
+
+st.set_page_config(
+    page_title="AI Career Copilot",
+    page_icon="🧠",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+
+# ============================================================
+# LOAD GEMINI API KEY
+# ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent
 ENV_FILE = BASE_DIR / ".env"
+
+# ------------------------------------------------------------
+# LOCAL DEVELOPMENT
+# ------------------------------------------------------------
 
 load_dotenv(dotenv_path=ENV_FILE)
 
 API_KEY = os.getenv("GEMINI_API_KEY")
 
-# -----------------------------
-# Page configuration
-# -----------------------------
 
-st.set_page_config(
-    page_title="AI Career Copilot",
-    page_icon="🧠",
-    layout="wide"
-)
-
-# -----------------------------
-# Header
-# -----------------------------
-
-st.title("🧠 AI Career Copilot")
-
-st.write(
-    "Generate personalized career guidance, resume content, "
-    "skill-gap analysis and interview preparation using Gemini."
-)
-
-st.divider()
-
-# -----------------------------
-# Check API key
-# -----------------------------
+# ------------------------------------------------------------
+# STREAMLIT CLOUD
+# ------------------------------------------------------------
 
 if not API_KEY:
+    try:
+        API_KEY = st.secrets.get("GEMINI_API_KEY")
+    except Exception:
+        API_KEY = None
 
+
+# ------------------------------------------------------------
+# CHECK API KEY
+# ------------------------------------------------------------
+
+if not API_KEY:
     st.error(
-        "❌ Gemini API key not found. "
-        "Please create a .env file containing GEMINI_API_KEY."
+        "❌ Gemini API key not configured. "
+        "Please add GEMINI_API_KEY to your Streamlit Secrets."
     )
-
     st.stop()
 
-# -----------------------------
-# Connect to Gemini
-# -----------------------------
+
+# ============================================================
+# INITIALIZE GEMINI
+# ============================================================
 
 try:
 
@@ -62,20 +67,89 @@ try:
 
 except Exception as e:
 
-    st.error(f"❌ Could not initialize Gemini: {e}")
-
+    st.error("❌ Could not initialize Gemini.")
+    st.code(str(e))
     st.stop()
 
 
-# -----------------------------
-# Candidate Information
-# -----------------------------
+# ============================================================
+# CUSTOM CSS
+# ============================================================
 
-st.header("👤 Candidate Profile")
+st.markdown(
+    """
+    <style>
 
-col1, col2 = st.columns(2)
+    .hero {
+        padding: 30px;
+        border-radius: 20px;
+        margin-bottom: 25px;
+        background: linear-gradient(
+            135deg,
+            #111827,
+            #1e293b
+        );
+        border: 1px solid #334155;
+    }
 
-with col1:
+    .hero h1 {
+        font-size: 42px;
+        margin-bottom: 8px;
+    }
+
+    .hero p {
+        font-size: 18px;
+        color: #cbd5e1;
+    }
+
+    .feature-card {
+        padding: 20px;
+        border-radius: 15px;
+        border: 1px solid #334155;
+        background: #111827;
+        margin-bottom: 15px;
+    }
+
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+
+# ============================================================
+# HERO SECTION
+# ============================================================
+
+st.markdown(
+    """
+    <div class="hero">
+
+        <h1>🧠 AI Career Copilot</h1>
+
+        <p>
+        Your GenAI-powered career assistant for resume optimization,
+        job matching, skill-gap analysis, interview preparation
+        and personalized career planning.
+        </p>
+
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+
+# ============================================================
+# SIDEBAR — CANDIDATE PROFILE
+# ============================================================
+
+with st.sidebar:
+
+    st.header("👤 Candidate Profile")
+
+    st.caption(
+        "Enter your information to generate a personalized "
+        "career analysis."
+    )
 
     name = st.text_input(
         "Full Name",
@@ -83,49 +157,64 @@ with col1:
     )
 
     education = st.text_area(
-        "Education",
-        placeholder="B.Tech in Computer Science..."
+        "🎓 Education",
+        placeholder=(
+            "B.Tech in Computer Science\n"
+            "University / College"
+        )
     )
 
     skills = st.text_area(
-        "Skills",
-        placeholder="Python, SQL, Excel, Power BI..."
+        "💻 Skills",
+        placeholder=(
+            "Python, SQL, Excel, Power BI, AWS..."
+        )
     )
 
-with col2:
-
     experience = st.text_area(
-        "Experience",
-        placeholder="Internships, freelance work, etc."
+        "💼 Experience",
+        placeholder=(
+            "Internships, freelance work, "
+            "part-time jobs, etc."
+        )
     )
 
     projects = st.text_area(
-        "Projects",
-        placeholder="AI Supply Chain Platform..."
+        "🚀 Projects",
+        placeholder=(
+            "AI Supply Chain Platform\n"
+            "Traffic Eye\n"
+            "Portfolio Website"
+        )
     )
 
     target_role = st.text_input(
-        "Target Job Role",
+        "🎯 Target Job Role",
         placeholder="e.g. Data Analyst"
     )
 
 
-# -----------------------------
-# Job Description
-# -----------------------------
+# ============================================================
+# JOB DESCRIPTION
+# ============================================================
 
 st.header("🎯 Target Job")
 
 job_description = st.text_area(
     "Paste the Job Description",
-    height=180,
-    placeholder="Paste the job description here..."
+    height=200,
+    placeholder=(
+        "Paste the job description here.\n\n"
+        "For example:\n"
+        "We are looking for a Data Analyst who can work "
+        "with Python, SQL, Excel and Power BI..."
+    )
 )
 
 
-# -----------------------------
-# Generate Button
-# -----------------------------
+# ============================================================
+# ANALYZE BUTTON
+# ============================================================
 
 generate = st.button(
     "🚀 Analyze My Career",
@@ -134,26 +223,46 @@ generate = st.button(
 )
 
 
-# -----------------------------
-# Generate AI Response
-# -----------------------------
+# ============================================================
+# AI ANALYSIS
+# ============================================================
 
 if generate:
 
-    if not name or not target_role:
+    # --------------------------------------------------------
+    # INPUT VALIDATION
+    # --------------------------------------------------------
+
+    if not name:
 
         st.warning(
-            "Please enter your name and target job role."
+            "⚠️ Please enter your name."
         )
 
-    else:
+        st.stop()
 
-        prompt = f"""
-You are an expert career coach and technical recruiter.
+    if not target_role:
 
-Analyze this candidate for the target job.
+        st.warning(
+            "⚠️ Please enter your target job role."
+        )
 
-CANDIDATE:
+        st.stop()
+
+
+    # --------------------------------------------------------
+    # PROMPT
+    # --------------------------------------------------------
+
+    prompt = f"""
+You are an expert career coach, technical recruiter,
+resume consultant and interview specialist.
+
+Analyze the candidate below for their target job role.
+
+============================================================
+CANDIDATE PROFILE
+============================================================
 
 Name:
 {name}
@@ -170,91 +279,320 @@ Experience:
 Projects:
 {projects}
 
-Target Role:
+Target Job Role:
 {target_role}
 
-JOB DESCRIPTION:
+============================================================
+JOB DESCRIPTION
+============================================================
+
 {job_description}
 
-Provide the following:
+============================================================
+IMPORTANT RULE
+============================================================
 
-1. Career Objective
-Write a strong 2-3 sentence career objective.
+Do NOT invent information.
 
-2. Professional Summary
+Do NOT invent:
+
+- Experience
+- Certifications
+- Achievements
+- Technologies
+- Companies
+- Job positions
+- Metrics
+- Projects
+- Awards
+
+Only use information provided by the candidate.
+
+If information is missing, clearly say that it was
+not provided.
+
+============================================================
+1. CAREER OBJECTIVE
+============================================================
+
+Write a strong 2-3 sentence career objective
+specifically targeted toward the target job role.
+
+============================================================
+2. PROFESSIONAL SUMMARY
+============================================================
+
 Write a professional resume summary.
 
-3. Resume Readiness Score
-Give a score from 0-100 and explain the score.
+Keep it concise, realistic and suitable for a resume.
 
-4. Skill Analysis
-Identify:
-- Strong skills
+============================================================
+3. RESUME READINESS SCORE
+============================================================
+
+Give a score from 0-100.
+
+Explain:
+
+- What is already strong
+- What is missing
+- What needs improvement
+
+============================================================
+4. SKILL ANALYSIS
+============================================================
+
+Create the following sections:
+
+### Strong Skills
+
+Skills the candidate already demonstrates.
+
+### Missing Skills
+
+Important skills required for the target role
+that the candidate does not currently mention.
+
+### Skills to Prioritize
+
+Top 5 skills the candidate should learn next.
+
+============================================================
+5. JOB MATCH SCORE
+============================================================
+
+Give a Job Match Score from 0-100%.
+
+Explain:
+
+- Matching skills
 - Missing skills
-- Skills to prioritize
+- Relevant experience
+- Relevant projects
+- Overall suitability
 
-5. Job Match Score
-Give a percentage from 0-100 and explain why.
+============================================================
+6. PROJECT OPTIMIZATION
+============================================================
 
-6. Project Improvements
-Rewrite each project into strong resume bullet points.
+Rewrite each candidate project into strong,
+professional resume bullet points.
 
-7. Resume Improvements
-Give 5 specific recommendations.
+Use action-oriented language.
 
-8. Interview Questions
-Generate:
-- 5 technical questions
-- 3 HR questions
-- 2 project-specific questions
+Do NOT invent metrics or achievements.
 
-9. 30-Day Learning Roadmap
-Create a four-week learning plan.
+============================================================
+7. RESUME IMPROVEMENTS
+============================================================
 
-10. Final Recommendation
-Give the candidate's biggest strength,
-biggest weakness and most important next step.
+Give 5 specific recommendations that would make
+the candidate's resume stronger.
 
-IMPORTANT:
-Do not invent experience, achievements,
-certifications or skills that the candidate
-did not provide.
+============================================================
+8. INTERVIEW QUESTIONS
+============================================================
 
-Use clear Markdown headings.
+Generate 10 interview questions.
+
+### Technical Questions
+
+5 technical questions related to the target job.
+
+### HR Questions
+
+3 HR questions.
+
+### Project Questions
+
+2 questions specifically related to the
+candidate's projects.
+
+============================================================
+9. 30-DAY LEARNING ROADMAP
+============================================================
+
+Create a practical 30-day roadmap.
+
+### Week 1 — Foundation
+
+Topics and activities.
+
+### Week 2 — Skill Development
+
+Topics and activities.
+
+### Week 3 — Projects and Practice
+
+Topics and activities.
+
+### Week 4 — Interview and Job Preparation
+
+Topics and activities.
+
+Make the roadmap realistic for a student.
+
+============================================================
+10. FINAL CAREER RECOMMENDATION
+============================================================
+
+Provide:
+
+### Biggest Strength
+
+### Biggest Weakness
+
+### Most Important Skill to Learn
+
+### Recommended Next Step
+
+### Overall Recommendation
+
+============================================================
+
+Use clean Markdown formatting.
+
+Make the answer detailed enough to be useful but
+avoid unnecessary repetition.
 """
 
-        with st.spinner("🤖 Gemini is analyzing your profile..."):
 
-            try:
+    # --------------------------------------------------------
+    # CALL GEMINI
+    # --------------------------------------------------------
 
-                interaction = client.interactions.create(
+    with st.spinner(
+        "🤖 Gemini is analyzing your career profile..."
+    ):
+
+        try:
+
+            interaction = client.interactions.create(
                 model="gemini-3.5-flash-lite",
                 input=prompt
-          )
+            )
 
-                result = interaction.output_text
-
-                st.success("✅ Analysis completed!")
-
-                st.divider()
-
-                st.header("📊 AI Career Analysis")
-
-                st.markdown(result)
-
-            except Exception as e:
-
-                st.error("❌ Gemini API request failed.")
-
-                st.code(str(e))
+            result = interaction.output_text
 
 
-# -----------------------------
-# Footer
-# -----------------------------
+            # ------------------------------------------------
+            # SUCCESS
+            # ------------------------------------------------
+
+            st.success(
+                "✅ Career analysis completed successfully!"
+            )
+
+            st.divider()
+
+            st.header(
+                "📊 Your AI Career Analysis"
+            )
+
+            st.markdown(result)
+
+
+            # ------------------------------------------------
+            # DOWNLOAD REPORT
+            # ------------------------------------------------
+
+            st.download_button(
+                label="📥 Download Career Analysis",
+                data=result,
+                file_name="AI_Career_Analysis.txt",
+                mime="text/plain",
+                use_container_width=True
+            )
+
+
+        except Exception as e:
+
+            st.error(
+                "❌ Gemini API request failed."
+            )
+
+            st.code(str(e))
+
+
+# ============================================================
+# LANDING PAGE
+# ============================================================
+
+else:
+
+    st.markdown(
+        """
+        ## 👋 Welcome to AI Career Copilot
+
+        AI Career Copilot uses **Generative AI** to analyze
+        your career profile and provide personalized
+        career guidance.
+
+        ### 🔄 How It Works
+
+        **1. 👤 Enter Your Profile**
+
+        Add your education, skills, experience and projects.
+
+        **2. 🎯 Choose Your Target Role**
+
+        Examples:
+
+        - Data Analyst
+        - Software Developer
+        - AI Engineer
+        - Cloud Engineer
+        - Product Manager
+        - Business Analyst
+
+        **3. 📄 Add a Job Description**
+
+        Paste the job description you're targeting.
+
+        **4. 🤖 Let Gemini Analyze Your Profile**
+
+        The AI compares your profile against the
+        requirements of the target role.
+
+        **5. 📊 Get Your Career Report**
+
+        You receive:
+
+        - 🎯 Career Objective
+        - 📝 Professional Summary
+        - 📊 Resume Readiness Score
+        - 🔍 Skill Gap Analysis
+        - 💼 Job Match Score
+        - 🚀 Project Improvements
+        - 🎤 Interview Questions
+        - 📚 30-Day Learning Roadmap
+        - 💡 Personalized Career Recommendations
+
+        ---
+
+        ### 🧠 What Makes This a GenAI Project?
+
+        Instead of using fixed rules or predefined responses,
+        the application uses a Large Language Model to
+        understand the candidate's profile and generate
+        personalized recommendations dynamically.
+
+        ---
+
+        ### 🛠️ Technology
+
+        **Python • Streamlit • Google Gemini • Generative AI**
+        """
+    )
+
+
+# ============================================================
+# FOOTER
+# ============================================================
 
 st.divider()
 
 st.caption(
-    "AI Career Copilot • Python • Streamlit • Google Gemini"
+    "🧠 AI Career Copilot • "
+    "Built with Python, Streamlit & Google Gemini"
 )
